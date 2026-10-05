@@ -9,3 +9,22 @@
 уверенно владею: React(html css js), python
 Знаком: java, prolog, 
 Терпеть не могу: бек-энд}
+
+# Иннокентий Александрович
+Отвечаю за:
+- [ ] Backend
+- [ ] немного Testing
+- [ ] Абсолютно полный ноль Frontend
+<details>
+<summary><b> Неуверенно владею:</b></summary>
+Python, Java
+</details>
+<details>
+<summary><b> Неуверенно знаком с:</b></summary>
+Go, C++, Haskell, Prolog, JS
+</details>
+
+|            |  Могу  |  Не могу |
+| :--------- | :----: | -------: |
+| Терпеть    | Бэкенд | Фронтенд |
+| Не терпеть | Тесты  | Фронтенд |
