@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Heart, MessageCircle, User, X, Image as ImageIcon } from 'lucide-react';
+import { Plus, Heart, MessageCircle, User, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { getPosts, createPost } from '../api/posts';
 import { compressImage } from '../utils/compressImage';
@@ -14,6 +14,7 @@ export default function FeedPage() {
   const [newImageFile, setNewImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);   
   const fileInputRef = useRef(null);
 
   useEffect(() => { loadPosts(); }, []);
@@ -33,12 +34,22 @@ export default function FeedPage() {
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const compressed = await compressImage(file);
-    setNewImageFile(compressed);
-    setPreviewUrl(URL.createObjectURL(compressed));
+
+    try {
+      setIsCompressing(true);                 
+      const compressed = await compressImage(file);
+      setNewImageFile(compressed);
+      setPreviewUrl(URL.createObjectURL(compressed));
+    } catch (err) {
+      toast.error('Не удалось обработать картинку');
+      console.error(err);
+    } finally {
+      setIsCompressing(false);               
+    }
   };
 
   const handleRemoveImage = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setNewImageFile(null);
     setPreviewUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -46,6 +57,8 @@ export default function FeedPage() {
 
   const handleAddPost = async () => {
     if (!newText.trim() && !newImageFile) return;
+    if (isCompressing) return;                
+
     try {
       setSubmitting(true);
       const newPost = await createPost(newText, newImageFile);
@@ -85,23 +98,43 @@ export default function FeedPage() {
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
           />
+
           <input
-            type="file" accept="image/*" ref={fileInputRef}
-            onChange={handleFileChange} className={styles.fileInput}
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className={styles.fileInput}
+            disabled={isCompressing}
           />
 
-          {!previewUrl ? (
-            <button className={styles.attachBtn} onClick={() => fileInputRef.current.click()}>
+          {isCompressing ? (
+          
+            <button className={styles.attachBtn} disabled>
+              <Loader2 size={20} className={styles.spinner} />
+              Загружается...
+            </button>
+          ) : !previewUrl ? (
+            <button
+              className={styles.attachBtn}
+              onClick={() => fileInputRef.current.click()}
+            >
               <ImageIcon size={20} /> Прикрепить картинку
             </button>
           ) : (
             <div className={styles.previewWrap}>
               <img src={previewUrl} alt="Preview" className={styles.preview} />
-              <button className={styles.removeImg} onClick={handleRemoveImage}><X size={14} /></button>
+              <button className={styles.removeImg} onClick={handleRemoveImage}>
+                <X size={14} />
+              </button>
             </div>
           )}
 
-          <button className={styles.submitBtn} onClick={handleAddPost} disabled={submitting}>
+          <button
+            className={styles.submitBtn}
+            onClick={handleAddPost}
+            disabled={submitting || isCompressing}
+          >
             {submitting ? 'Публикация...' : 'Опубликовать'}
           </button>
         </div>
@@ -120,8 +153,11 @@ export default function FeedPage() {
 
           {post.imageUrl && (
             <img
-              src={post.imageUrl} alt="" className={styles.postImage}
-              loading="lazy" onError={e => e.target.style.display = 'none'}
+              src={post.imageUrl}
+              alt=""
+              className={styles.postImage}
+              loading="lazy"
+              onError={e => e.target.style.display = 'none'}
             />
           )}
           {post.text && <p className={styles.postText}>{post.text}</p>}
