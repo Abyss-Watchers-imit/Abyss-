@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Heart, MessageCircle, User, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import {
+  Plus, Heart, MessageCircle, User, X,
+  Image as ImageIcon, Loader2, Send,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getPosts, createPost } from '../api/posts';
+import { getPosts, createPost, toggleLike, addComment } from '../api/posts';
 import { compressImage } from '../utils/compressImage';
 import { timeAgo } from '../utils/time';
+import { useUser } from '../context/UserContext';
 import styles from './FeedPage.module.css';
 
 export default function FeedPage() {
+  const { user } = useUser();
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -14,8 +19,12 @@ export default function FeedPage() {
   const [newImageFile, setNewImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [isCompressing, setIsCompressing] = useState(false);   
+  const [isCompressing, setIsCompressing] = useState(false);
   const fileInputRef = useRef(null);
+
+  const [expandedPostId, setExpandedPostId] = useState(null);
+  const [commentText, setCommentText] = useState('');
+  const [commentLoading, setCommentLoading] = useState(false);
 
   useEffect(() => { loadPosts(); }, []);
 
@@ -34,17 +43,15 @@ export default function FeedPage() {
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     try {
-      setIsCompressing(true);                 
+      setIsCompressing(true);
       const compressed = await compressImage(file);
       setNewImageFile(compressed);
       setPreviewUrl(URL.createObjectURL(compressed));
     } catch (err) {
       toast.error('Не удалось обработать картинку');
-      console.error(err);
     } finally {
-      setIsCompressing(false);               
+      setIsCompressing(false);
     }
   };
 
@@ -57,8 +64,7 @@ export default function FeedPage() {
 
   const handleAddPost = async () => {
     if (!newText.trim() && !newImageFile) return;
-    if (isCompressing) return;                
-
+    if (isCompressing) return;
     try {
       setSubmitting(true);
       const newPost = await createPost(newText, newImageFile);
@@ -74,6 +80,55 @@ export default function FeedPage() {
     }
   };
 
+  const handleLike = async (postId) => {
+  const prevPosts = posts;
+  setPosts(posts.map(p => {
+    if (p._id !== postId) return p;
+    const likedBy = p.likedBy || [];
+    const isLiked = likedBy.includes(user.id);
+    return {
+      ...p,
+      likedBy: isLiked
+        ? likedBy.filter(id => id !== user.id)
+        : [...likedBy, user.id],
+      likes: isLiked ? Math.max(0, p.likes - 1) : p.likes + 1,
+    };
+  }));
+
+  try {
+    const result = await toggleLike(postId);
+    setPosts(current => current.map(p =>
+      p._id === postId ? { ...p, likes: result.likes, likedBy: result.likedBy } : p
+    ));
+  } catch (err) {
+    setPosts(prevPosts);
+    toast.error(err.message || 'Не удалось поставить лайк');
+  }
+};
+const toggleComments = (postId) => {
+  setExpandedPostId(prev => (prev === postId ? null : postId));
+  setCommentText('');
+};
+  const handleAddComment = async (postId) => {
+  if (!commentText.trim()) return;
+
+  try {
+    setCommentLoading(true);
+    const comment = await addComment(postId, commentText);
+    
+    setPosts(current => current.map(p =>
+      p._id === postId
+        ? { ...p, comments: [...(p.comments || []), comment] }
+        : p
+    ));
+    
+    setCommentText('');
+  } catch (err) {
+    toast.error(err.message || 'Не удалось отправить комментарий');
+  } finally {
+    setCommentLoading(false);
+  }
+};
   if (isLoading) {
     return (
       <div className={styles.container}>
@@ -98,27 +153,18 @@ export default function FeedPage() {
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
           />
-
           <input
-            type="file"
-            accept="image/*"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className={styles.fileInput}
+            type="file" accept="image/*" ref={fileInputRef}
+            onChange={handleFileChange} className={styles.fileInput}
             disabled={isCompressing}
           />
 
           {isCompressing ? (
-          
             <button className={styles.attachBtn} disabled>
-              <Loader2 size={20} className={styles.spinner} />
-              Загружается...
+              <Loader2 size={20} className={styles.spinner} /> Загружается...
             </button>
           ) : !previewUrl ? (
-            <button
-              className={styles.attachBtn}
-              onClick={() => fileInputRef.current.click()}
-            >
+            <button className={styles.attachBtn} onClick={() => fileInputRef.current.click()}>
               <ImageIcon size={20} /> Прикрепить картинку
             </button>
           ) : (
@@ -140,37 +186,101 @@ export default function FeedPage() {
         </div>
       )}
 
-      {posts.map(post => (
-        <article key={post._id || post.id} className={styles.post}>
-          <header className={styles.postHeader}>
-            <div className={styles.avatar}>
-              {post.author?.avatar
-                ? <img src={post.author.avatar} alt="" />
-                : <User size={22} />}
-            </div>
-            <strong className={styles.authorName}>{post.author?.name || 'Аноним'}</strong>
-          </header>
+      {posts.map(post => {
+        const isLiked = user && (post.likedBy || []).includes(user.id);
+        const commentsCount = post.comments?.length || 0;
+        const isExpanded = expandedPostId === post._id;
 
-          {post.imageUrl && (
-            <img
-              src={post.imageUrl}
-              alt=""
-              className={styles.postImage}
-              loading="lazy"
-              onError={e => e.target.style.display = 'none'}
-            />
-          )}
-          {post.text && <p className={styles.postText}>{post.text}</p>}
+        return (
+          <article key={post._id} className={styles.post}>
+            <header className={styles.postHeader}>
+              <div className={styles.avatar}>
+                {post.author?.avatar
+                  ? <img src={post.author.avatar} alt="" />
+                  : <User size={22} />}
+              </div>
+              <strong className={styles.authorName}>{post.author?.name || 'Аноним'}</strong>
+            </header>
 
-          <footer className={styles.postFooter}>
-            <div className={styles.actions}>
-              <span className={styles.action}><Heart size={18} /> {post.likes}</span>
-              <span className={styles.action}><MessageCircle size={18} /> {post.comments?.length || 0}</span>
-            </div>
-            <span className={styles.time}>{timeAgo(post.createdAt)}</span>
-          </footer>
-        </article>
-      ))}
+            {post.imageUrl && (
+              <img
+                src={post.imageUrl} alt="" className={styles.postImage}
+                loading="lazy" onError={e => e.target.style.display = 'none'}
+              />
+            )}
+            {post.text && <p className={styles.postText}>{post.text}</p>}
+
+            <footer className={styles.postFooter}>
+              <div className={styles.actions}>
+                <span
+                  className={`${styles.action} ${isLiked ? styles.liked : ''}`}
+                  onClick={() => handleLike(post._id)}
+                  title={isLiked ? 'Убрать лайк' : 'Поставить лайк'}
+                >
+                  <Heart size={18} fill={isLiked ? '#ff4d6d' : 'none'} />
+                  {post.likes}
+                </span>
+
+                <span
+                  className={styles.action}
+                  onClick={() => toggleComments(post._id)}
+                >
+                  <MessageCircle size={18} />
+                  {commentsCount}
+                </span>
+              </div>
+              <span className={styles.time}>{timeAgo(post.createdAt)}</span>
+            </footer>
+
+            {isExpanded && (
+              <div className={styles.commentsBlock}>
+                <div className={styles.commentsList}>
+                  {commentsCount === 0 ? (
+                    <div className={styles.noComments}>Пока нет комментариев</div>
+                  ) : (
+                    post.comments.map(c => (
+                      <div key={c._id} className={styles.comment}>
+                        <div className={styles.commentAvatar}>
+                          {c.author?.avatar
+                            ? <img src={c.author.avatar} alt="" />
+                            : (c.author?.name?.[0] || '?')}
+                        </div>
+                        <div className={styles.commentBody}>
+                          <div className={styles.commentAuthor}>{c.author?.name || 'Аноним'}</div>
+                          <p className={styles.commentText}>{c.text}</p>
+                          <div className={styles.commentTime}>{timeAgo(c.createdAt)}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className={styles.commentForm}>
+                  <input
+                    className={styles.commentInput}
+                    placeholder="Написать комментарий..."
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleAddComment(post._id);
+                      }
+                    }}
+                  />
+                  <button
+                    className={styles.commentSubmit}
+                    onClick={() => handleAddComment(post._id)}
+                    disabled={!commentText.trim() || commentLoading}
+                  >
+                    <Send size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </article>
+        );
+      })}
     </div>
   );
 }
