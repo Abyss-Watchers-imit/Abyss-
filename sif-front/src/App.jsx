@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import FeedPage from './pages/FeedPage';
 import ProfilePage from './pages/ProfilePage';
-import ChatPage from './pages/ChatPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import { useUser } from './context/UserContext';
@@ -24,7 +23,6 @@ export default function App() {
         <Route path="/" element={<Navigate to="/feed" replace />} />
         <Route path="/feed" element={<FeedPage />} />
         <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/chat" element={<ChatPage />} />
       </Route>
     </Routes>
   );

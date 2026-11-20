@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { User, Newspaper, MessageCircle, LogOut } from 'lucide-react';
+import { User, Newspaper, LogOut } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 
 export default function Sidebar() {
@@ -30,7 +30,6 @@ export default function Sidebar() {
       <nav style={{ display: 'flex', flexDirection: 'column' }}>
         <NavLink to="/profile" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}><User size={18} /> Профиль</NavLink>
         <NavLink to="/feed" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}><Newspaper size={18} /> Лента</NavLink>
-        <NavLink to="/chat" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}><MessageCircle size={18} /> Чат</NavLink>
         <button
           onClick={handleLogout}
           className="nav-link"
