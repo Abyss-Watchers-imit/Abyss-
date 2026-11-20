@@ -4,7 +4,7 @@ const TOKEN_KEY = 'token';
 const DEFAULT_USERS = [
   {
     id: 'u1',
-    name: 'Иванов И. И.',
+    name: 'И',
     email: 'ivanov@test.ru',
     password: '1',
     avatar: null,

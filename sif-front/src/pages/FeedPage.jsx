@@ -81,54 +81,61 @@ export default function FeedPage() {
   };
 
   const handleLike = async (postId) => {
-  const prevPosts = posts;
-  setPosts(posts.map(p => {
-    if (p._id !== postId) return p;
-    const likedBy = p.likedBy || [];
-    const isLiked = likedBy.includes(user.id);
-    return {
-      ...p,
-      likedBy: isLiked
-        ? likedBy.filter(id => id !== user.id)
-        : [...likedBy, user.id],
-      likes: isLiked ? Math.max(0, p.likes - 1) : p.likes + 1,
-    };
-  }));
+    let prevSnapshot = null;
 
-  try {
-    const result = await toggleLike(postId);
-    setPosts(current => current.map(p =>
-      p._id === postId ? { ...p, likes: result.likes, likedBy: result.likedBy } : p
-    ));
-  } catch (err) {
-    setPosts(prevPosts);
-    toast.error(err.message || 'Не удалось поставить лайк');
-  }
-};
-const toggleComments = (postId) => {
-  setExpandedPostId(prev => (prev === postId ? null : postId));
-  setCommentText('');
-};
-  const handleAddComment = async (postId) => {
-  if (!commentText.trim()) return;
+    setPosts(current => {
+      prevSnapshot = current;
+      return current.map(p => {
+        if (p._id !== postId) return p;
+        const likedBy = p.likedBy || [];
+        const isLiked = likedBy.includes(user.id);
+        return {
+          ...p,
+          likedBy: isLiked
+            ? likedBy.filter(id => id !== user.id)
+            : [...likedBy, user.id],
+          likes: isLiked ? Math.max(0, p.likes - 1) : p.likes + 1,
+        };
+      });
+    });
 
-  try {
-    setCommentLoading(true);
-    const comment = await addComment(postId, commentText);
-    
-    setPosts(current => current.map(p =>
-      p._id === postId
-        ? { ...p, comments: [...(p.comments || []), comment] }
-        : p
-    ));
-    
+    try {
+      const result = await toggleLike(postId);
+      setPosts(current => current.map(p =>
+        p._id === postId ? { ...p, likes: result.likes, likedBy: result.likedBy } : p
+      ));
+    } catch (err) {
+      if (prevSnapshot) setPosts(prevSnapshot);
+      toast.error(err.message || 'Не удалось поставить лайк');
+    }
+  };
+
+  const toggleComments = (postId) => {
+    setExpandedPostId(prev => (prev === postId ? null : postId));
     setCommentText('');
-  } catch (err) {
-    toast.error(err.message || 'Не удалось отправить комментарий');
-  } finally {
-    setCommentLoading(false);
-  }
-};
+  };
+
+  const handleAddComment = async (postId) => {
+    if (!commentText.trim()) return;
+
+    try {
+      setCommentLoading(true);
+      const comment = await addComment(postId, commentText);
+      
+      setPosts(current => current.map(p =>
+        p._id === postId
+          ? { ...p, comments: [...(p.comments || []), comment] }
+          : p
+      ));
+      
+      setCommentText('');
+    } catch (err) {
+      toast.error(err.message || 'Не удалось отправить комментарий');
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={styles.container}>

@@ -9,7 +9,7 @@ html, body, #root {
   height: 100vh;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: linear-gradient(180deg, #7ad7f0 0%, #a4b4f6 100%);
+  background: linear-gradient(180deg, #8da0ff 0%, #ffffff 100%);
   color: #ffffff;
 }
 
@@ -49,6 +49,7 @@ html, body, #root {
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  animation: pageFadeIn 0.4s ease-out forwards;
 }
 
 .sidebar-user {
@@ -72,4 +73,31 @@ html, body, #root {
 
 .nav-link:hover, .nav-link.active {
   background-color: rgba(255, 255, 255, 0.15);
+}
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px); 
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  text-decoration: none;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 5px;
+  
+  transition: background-color 0.2s ease, transform 0.2s ease, padding-left 0.2s ease;
+}
+
+.nav-link:hover, .nav-link.active {
+  background-color: rgba(255, 255, 255, 0.15);
+  transform: translateX(4px);
 }
